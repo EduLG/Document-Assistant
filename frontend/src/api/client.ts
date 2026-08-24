@@ -21,6 +21,15 @@ async function parseErrorMessage(response: Response): Promise<string> {
   }
 }
 
+export async function checkHealth(): Promise<boolean> {
+  try {
+    const response = await fetch(`${API_BASE_URL}/health`);
+    return response.ok;
+  } catch {
+    return false;
+  }
+}
+
 export async function uploadDocument(file: File): Promise<UploadDocumentResponse> {
   const formData = new FormData();
   formData.append("file", file);
