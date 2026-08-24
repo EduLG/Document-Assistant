@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { checkHealth } from "./api/client";
+import DocumentUpload from "./components/DocumentUpload";
 import "./App.css";
 
 type BackendStatus = "checking" | "online" | "offline";
@@ -17,7 +18,10 @@ function App() {
       <p>
         Backend: <strong>{status}</strong>
       </p>
-      <p>PDF upload and chat pages coming next (DA-24, DA-25).</p>
+
+      <DocumentUpload />
+
+      <p>Chat page coming next (DA-25).</p>
     </main>
   );
 }
