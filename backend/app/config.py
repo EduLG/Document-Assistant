@@ -10,8 +10,8 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 
 class Settings:
     google_api_key: str = os.getenv("GOOGLE_API_KEY", "")
-    chat_model: str = os.getenv("CHAT_MODEL", "gemini-2.0-flash")
-    embedding_model: str = os.getenv("EMBEDDING_MODEL", "models/text-embedding-004")
+    chat_model: str = os.getenv("CHAT_MODEL", "gemini-3.6-flash")
+    embedding_model: str = os.getenv("EMBEDDING_MODEL", "models/gemini-embedding-001")
     chroma_dir: str = str(BASE_DIR / os.getenv("CHROMA_DIR", "./chroma_db"))
     upload_dir: str = str(BASE_DIR / os.getenv("UPLOAD_DIR", "./data/uploads"))
     cors_origins: list[str] = os.getenv("CORS_ORIGINS", "http://localhost:5173").split(",")

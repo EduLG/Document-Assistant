@@ -34,6 +34,19 @@ SYSTEM_PROMPT = (
 )
 
 
+def _extract_text(content) -> str:
+    if isinstance(content, str):
+        return content
+    if isinstance(content, list):
+        parts = [
+            block.get("text", "")
+            for block in content
+            if isinstance(block, dict) and block.get("type") == "text"
+        ]
+        return "".join(parts)
+    return str(content)
+
+
 def ingest_pdf(file_path: str, source_name: str) -> int:
     loader = PyPDFLoader(file_path)
     pages = loader.load()
@@ -60,7 +73,7 @@ def answer_question(conversation_id: str, question: str, k: int = 4) -> str:
     )
 
     response = llm.invoke(prompt)
-    answer = response.content
+    answer = _extract_text(response.content)
 
     history.append(("Usuario", question))
     history.append(("IA", answer))
