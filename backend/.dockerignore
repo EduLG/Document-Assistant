@@ -1,0 +1,7 @@
+.venv/
+__pycache__/
+*.pyc
+chroma_db/
+data/uploads/
+.env
+README.md
