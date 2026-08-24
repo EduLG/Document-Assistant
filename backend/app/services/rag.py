@@ -28,9 +28,9 @@ splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=150)
 conversations: dict[str, list[tuple[str, str]]] = {}
 
 SYSTEM_PROMPT = (
-    "Eres un asistente que responde preguntas basándose únicamente en el contexto "
-    "de los documentos proporcionados. Si la respuesta no está en el contexto, dilo "
-    "claramente en lugar de inventar información. Responde en el mismo idioma que la pregunta."
+    "You are an assistant that answers questions based solely on the provided "
+    "document context. If the answer is not in the context, say so clearly instead "
+    "of making up information. Respond in the same language as the question."
 )
 
 
@@ -66,16 +66,16 @@ def answer_question(conversation_id: str, question: str, k: int = 4) -> str:
 
     prompt = (
         f"{SYSTEM_PROMPT}\n\n"
-        f"Contexto de los documentos:\n{context if context else '(sin contexto relevante encontrado)'}\n\n"
-        f"Historial de la conversación:\n{history_text if history_text else '(sin historial previo)'}\n\n"
-        f"Pregunta: {question}\n"
-        "Respuesta:"
+        f"Document context:\n{context if context else '(no relevant context found)'}\n\n"
+        f"Conversation history:\n{history_text if history_text else '(no previous history)'}\n\n"
+        f"Question: {question}\n"
+        "Answer:"
     )
 
     response = llm.invoke(prompt)
     answer = _extract_text(response.content)
 
-    history.append(("Usuario", question))
-    history.append(("IA", answer))
+    history.append(("User", question))
+    history.append(("AI", answer))
 
     return answer
