@@ -20,7 +20,7 @@ class Settings:
 settings = Settings()
 
 if not settings.google_api_key:
-    raise RuntimeError("GOOGLE_API_KEY no está configurada. Define backend/.env a partir de .env.example")
+    raise RuntimeError("GOOGLE_API_KEY is not set. Define backend/.env based on .env.example")
 
 os.makedirs(settings.chroma_dir, exist_ok=True)
 os.makedirs(settings.upload_dir, exist_ok=True)
