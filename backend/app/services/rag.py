@@ -1,15 +1,24 @@
 from pathlib import Path
 
 from langchain_chroma import Chroma
+from langchain_classic.embeddings import CacheBackedEmbeddings
+from langchain_classic.storage import LocalFileStore
 from langchain_google_genai import ChatGoogleGenerativeAI, GoogleGenerativeAIEmbeddings
 
 from app.config import settings
 from app.services.loaders import load_document
 from app.services.splitters import get_splitter
 
-embeddings = GoogleGenerativeAIEmbeddings(
+_underlying_embeddings = GoogleGenerativeAIEmbeddings(
     model=settings.embedding_model,
     google_api_key=settings.google_api_key,
+)
+
+embeddings = CacheBackedEmbeddings.from_bytes_store(
+    underlying_embeddings=_underlying_embeddings,
+    document_embedding_cache=LocalFileStore(settings.embeddings_cache_dir),
+    namespace=settings.embedding_model,
+    key_encoder="sha256",
 )
 
 vectorstore = Chroma(

@@ -8,6 +8,7 @@ venv/
 backend/.env
 backend/chroma_db/
 backend/data/uploads/
+backend/embeddings_cache/
 
 # Node / frontend
 node_modules/

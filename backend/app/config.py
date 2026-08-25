@@ -17,6 +17,7 @@ class Settings:
     cors_origins: list[str] = os.getenv("CORS_ORIGINS", "http://localhost:5173").split(",")
     chunk_size: int = int(os.getenv("CHUNK_SIZE", "1000"))
     chunk_overlap: int = int(os.getenv("CHUNK_OVERLAP", "150"))
+    embeddings_cache_dir: str = str(BASE_DIR / os.getenv("EMBEDDINGS_CACHE_DIR", "./embeddings_cache"))
 
 
 settings = Settings()
@@ -26,3 +27,4 @@ if not settings.google_api_key:
 
 os.makedirs(settings.chroma_dir, exist_ok=True)
 os.makedirs(settings.upload_dir, exist_ok=True)
+os.makedirs(settings.embeddings_cache_dir, exist_ok=True)
