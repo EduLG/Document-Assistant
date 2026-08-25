@@ -15,6 +15,8 @@ class Settings:
     chroma_dir: str = str(BASE_DIR / os.getenv("CHROMA_DIR", "./chroma_db"))
     upload_dir: str = str(BASE_DIR / os.getenv("UPLOAD_DIR", "./data/uploads"))
     cors_origins: list[str] = os.getenv("CORS_ORIGINS", "http://localhost:5173").split(",")
+    chunk_size: int = int(os.getenv("CHUNK_SIZE", "1000"))
+    chunk_overlap: int = int(os.getenv("CHUNK_OVERLAP", "150"))
 
 
 settings = Settings()
