@@ -30,9 +30,11 @@ export async function checkHealth(): Promise<boolean> {
   }
 }
 
-export async function uploadDocument(file: File): Promise<UploadDocumentResponse> {
+export async function uploadDocuments(files: File[]): Promise<UploadDocumentResponse> {
   const formData = new FormData();
-  formData.append("file", file);
+  for (const file of files) {
+    formData.append("files", file);
+  }
 
   const response = await fetch(`${API_BASE_URL}/documents/upload`, {
     method: "POST",

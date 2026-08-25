@@ -1,7 +1,9 @@
-export interface UploadDocumentResponse {
+export interface UploadDocumentResult {
   filename: string;
   chunks_indexed: number;
 }
+
+export type UploadDocumentResponse = UploadDocumentResult[];
 
 export interface ChatMessage {
   conversation_id: string;

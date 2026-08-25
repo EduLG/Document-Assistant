@@ -1,9 +1,9 @@
 from langchain_chroma import Chroma
-from langchain_community.document_loaders import PyPDFLoader
 from langchain_google_genai import ChatGoogleGenerativeAI, GoogleGenerativeAIEmbeddings
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 
 from app.config import settings
+from app.services.loaders import load_document
 
 embeddings = GoogleGenerativeAIEmbeddings(
     model=settings.embedding_model,
@@ -47,9 +47,8 @@ def _extract_text(content) -> str:
     return str(content)
 
 
-def ingest_pdf(file_path: str, source_name: str) -> int:
-    loader = PyPDFLoader(file_path)
-    pages = loader.load()
+def ingest_document(file_path: str, source_name: str) -> int:
+    pages = load_document(file_path)
     chunks = splitter.split_documents(pages)
     for chunk in chunks:
         chunk.metadata["source"] = source_name
