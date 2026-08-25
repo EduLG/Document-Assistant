@@ -1,9 +1,11 @@
+from pathlib import Path
+
 from langchain_chroma import Chroma
 from langchain_google_genai import ChatGoogleGenerativeAI, GoogleGenerativeAIEmbeddings
-from langchain_text_splitters import RecursiveCharacterTextSplitter
 
 from app.config import settings
 from app.services.loaders import load_document
+from app.services.splitters import get_splitter
 
 embeddings = GoogleGenerativeAIEmbeddings(
     model=settings.embedding_model,
@@ -21,8 +23,6 @@ llm = ChatGoogleGenerativeAI(
     google_api_key=settings.google_api_key,
     temperature=0.2,
 )
-
-splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=150)
 
 # conversation_id -> [(role, text), ...]
 conversations: dict[str, list[tuple[str, str]]] = {}
@@ -49,6 +49,8 @@ def _extract_text(content) -> str:
 
 def ingest_document(file_path: str, source_name: str) -> int:
     pages = load_document(file_path)
+    extension = Path(file_path).suffix.lower()
+    splitter = get_splitter(extension)
     chunks = splitter.split_documents(pages)
     for chunk in chunks:
         chunk.metadata["source"] = source_name
