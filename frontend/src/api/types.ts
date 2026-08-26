@@ -1,4 +1,5 @@
 export interface UploadDocumentResult {
+  doc_id: string;
   filename: string;
   chunks_indexed: number;
 }

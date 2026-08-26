@@ -56,19 +56,26 @@ def _extract_text(content) -> str:
     return str(content)
 
 
-def ingest_document(file_path: str, source_name: str) -> int:
+def ingest_document(file_path: str, source_name: str, doc_id: str) -> int:
     pages = load_document(file_path)
     extension = Path(file_path).suffix.lower()
     splitter = get_splitter(extension)
     chunks = splitter.split_documents(pages)
     for chunk in chunks:
         chunk.metadata["source"] = source_name
+        chunk.metadata["doc_id"] = doc_id
     vectorstore.add_documents(chunks)
     return len(chunks)
 
 
-def answer_question(conversation_id: str, question: str, k: int = 4) -> str:
-    docs = vectorstore.similarity_search(question, k=k)
+def answer_question(
+    conversation_id: str, question: str, k: int = 4, doc_ids: list[str] | None = None
+) -> str:
+    search_filter = None
+    if doc_ids:
+        search_filter = {"doc_id": doc_ids[0] if len(doc_ids) == 1 else {"$in": doc_ids}}
+
+    docs = vectorstore.similarity_search(question, k=k, filter=search_filter)
     context = "\n\n---\n\n".join(doc.page_content for doc in docs)
 
     history = conversations.setdefault(conversation_id, [])
