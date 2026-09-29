@@ -86,7 +86,7 @@ The loader and splitter steps are both **dispatch tables** (`extension → class
 
 These are not bugs — they're the parts of the roadmap that haven't been built yet, called out explicitly so it's clear what "done" currently means:
 
-- **One shared vector collection.** Every document lands in a single Chroma collection named `documents`. There's no way to scope a search to one document, let alone one user.
+- **No user scoping yet.** Every document lands in a single Chroma collection named `documents`, tagged with a `doc_id` in its metadata. A search can be scoped to one or more documents, but not to a user.
 - **Conversation history is a plain Python dict in memory.** Restart the backend, every conversation is gone.
 - **No embedding cache.** Re-uploading the same content recomputes embeddings from scratch — each call is a billed request to Gemini.
 - **Retrieval is pure vector similarity.** Great at semantic/paraphrase matching, weak at exact keywords, acronyms, or rare terms that don't have a nearby vector neighbor.
@@ -97,7 +97,7 @@ These are not bugs — they're the parts of the roadmap that haven't been built 
 ### Phase 1 — Functional basic RAG (current)
 
 - **Embeddings with disk cache** — embedding a chunk is a network call. Without a cache, identical content (re-uploads, overlapping chunks across documents) costs money and time repeatedly for the same result.
-- **Persistent Chroma vector store with per-document collection** — moves off the single shared collection, so retrieval can be scoped to a specific document instead of searching everything ever uploaded. This is also the foundation the multi-user isolation in Phase 4 builds on.
+- **Persistent Chroma vector store with per-document scoping** — every chunk is tagged with a `doc_id` in its metadata, and retrieval can filter by one document or a set of them (`$in`) instead of searching everything ever uploaded. It stays a single shared collection on purpose: one query can span several documents, and it's the same metadata-filtering pattern the multi-user isolation in Phase 4 builds on.
 - **Q&A chain with conversational memory** — replaces the hand-rolled history dict + string concatenation with a real LangChain conversational chain, which also handles *query rewriting*: if you ask "what is X" and then "how does it compare to Y", the chain needs to resolve what "it" refers to.
 - **Hybrid search (BM25 + vector)** — BM25 is classic keyword-ranking; combining it with vector similarity catches exact-term and acronym queries that pure semantic search tends to miss.
 
@@ -115,7 +115,7 @@ These are not bugs — they're the parts of the roadmap that haven't been built 
 ### Phase 4 — Production
 
 - **Harden the FastAPI API** — rate limiting, upload size limits, a real error taxonomy.
-- **Multi-user support with metadata-filtering isolation** — builds on the per-document collections from Phase 1: every chunk gets a user/tenant id in its metadata, and every retrieval call filters by it, so users never see each other's documents despite sharing the same underlying store. This is the standard, cost-effective multi-tenancy pattern for vector databases.
+- **Multi-user support with metadata-filtering isolation** — builds on the per-document metadata filtering from Phase 1: every chunk gets a user/tenant id in its metadata, and every retrieval call filters by it, so users never see each other's documents despite sharing the same underlying store. This is the standard, cost-effective multi-tenancy pattern for vector databases.
 - **Structured logging and observability with LangSmith** — once there's a multi-step agent (classify/retrieve/answer/validate), print-debugging isn't enough. LangSmith traces every step of a run, showing exactly which retrieved chunks produced which answer.
 - **Response caching and tests with pytest** — cache identical Q&A pairs to cut latency/cost; a test suite to prevent regressions as the pipeline grows more branches.
 - **PII sanitization in documents and responses** — uploaded documents may contain personal data. Detecting and redacting it before indexing (and before returning answers) matters the moment this stops being a personal sandbox project.
