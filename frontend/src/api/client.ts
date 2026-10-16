@@ -1,4 +1,9 @@
-import type { ApiErrorBody, ChatResponse, UploadDocumentResponse } from "./types";
+import type {
+  ApiErrorBody,
+  ChatMessage,
+  ChatResponse,
+  UploadDocumentResponse,
+} from "./types";
 
 const API_BASE_URL = import.meta.env.VITE_API_URL ?? "http://localhost:8000";
 
@@ -51,11 +56,16 @@ export async function uploadDocuments(files: File[]): Promise<UploadDocumentResp
 export async function sendChatMessage(
   conversationId: string,
   message: string,
+  docIds?: string[],
 ): Promise<ChatResponse> {
+  // Omitting doc_ids searches across every indexed document.
+  const body: ChatMessage = { conversation_id: conversationId, message };
+  if (docIds && docIds.length > 0) body.doc_ids = docIds;
+
   const response = await fetch(`${API_BASE_URL}/chat`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ conversation_id: conversationId, message }),
+    body: JSON.stringify(body),
   });
 
   if (!response.ok) {

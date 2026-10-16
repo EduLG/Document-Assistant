@@ -25,7 +25,8 @@ async def upload_documents(files: list[UploadFile]):
 
     results = []
     for file in files:
-        dest_name = f"{uuid.uuid4().hex}_{file.filename}"
+        doc_id = uuid.uuid4().hex
+        dest_name = f"{doc_id}_{file.filename}"
         dest_path = os.path.join(settings.upload_dir, dest_name)
 
         contents = await file.read()
@@ -33,12 +34,16 @@ async def upload_documents(files: list[UploadFile]):
             f.write(contents)
 
         try:
-            chunks_indexed = ingest_document(dest_path, source_name=file.filename)
+            chunks_indexed = ingest_document(
+                dest_path, source_name=file.filename, doc_id=doc_id
+            )
         except Exception as exc:
             raise HTTPException(
                 status_code=500, detail=f"Error processing '{file.filename}': {exc}"
             ) from exc
 
-        results.append({"filename": file.filename, "chunks_indexed": chunks_indexed})
+        results.append(
+            {"doc_id": doc_id, "filename": file.filename, "chunks_indexed": chunks_indexed}
+        )
 
     return results

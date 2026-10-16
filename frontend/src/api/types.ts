@@ -1,4 +1,5 @@
 export interface UploadDocumentResult {
+  doc_id: string;
   filename: string;
   chunks_indexed: number;
 }
@@ -8,6 +9,7 @@ export type UploadDocumentResponse = UploadDocumentResult[];
 export interface ChatMessage {
   conversation_id: string;
   message: string;
+  doc_ids?: string[];
 }
 
 export interface ChatResponse {
