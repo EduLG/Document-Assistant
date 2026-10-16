@@ -3,6 +3,12 @@ from pathlib import Path
 from langchain_chroma import Chroma
 from langchain_classic.embeddings import CacheBackedEmbeddings
 from langchain_classic.storage import LocalFileStore
+from langchain_core.chat_history import BaseChatMessageHistory, InMemoryChatMessageHistory
+from langchain_core.documents import Document
+from langchain_core.output_parsers import StrOutputParser
+from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
+from langchain_core.runnables import RunnableLambda, RunnablePassthrough
+from langchain_core.runnables.history import RunnableWithMessageHistory
 from langchain_google_genai import ChatGoogleGenerativeAI, GoogleGenerativeAIEmbeddings
 
 from app.config import settings
@@ -33,27 +39,91 @@ llm = ChatGoogleGenerativeAI(
     temperature=0.2,
 )
 
-# conversation_id -> [(role, text), ...]
-conversations: dict[str, list[tuple[str, str]]] = {}
+# Per-session memory, lost on restart; persistent checkpointing is DA-14 (Phase 3).
+session_histories: dict[str, InMemoryChatMessageHistory] = {}
+
+# Only the most recent turns are sent to the model, to keep prompts bounded.
+MAX_HISTORY_MESSAGES = 6
 
 SYSTEM_PROMPT = (
     "You are an assistant that answers questions based solely on the provided "
     "document context. If the answer is not in the context, say so clearly instead "
-    "of making up information. Respond in the same language as the question."
+    "of making up information. Respond in the same language as the question.\n\n"
+    "Document context:\n{context}"
 )
 
+CONTEXTUALIZE_PROMPT = (
+    "Given the conversation history and the latest user question, which may refer "
+    "to earlier messages, rewrite it as a standalone question that can be understood "
+    "without the history. Do not answer it; only return the rewritten question, "
+    "in the same language as the original."
+)
 
-def _extract_text(content) -> str:
-    if isinstance(content, str):
-        return content
-    if isinstance(content, list):
-        parts = [
-            block.get("text", "")
-            for block in content
-            if isinstance(block, dict) and block.get("type") == "text"
-        ]
-        return "".join(parts)
-    return str(content)
+contextualize_prompt = ChatPromptTemplate.from_messages(
+    [
+        ("system", CONTEXTUALIZE_PROMPT),
+        MessagesPlaceholder("history"),
+        ("human", "{question}"),
+    ]
+)
+
+qa_prompt = ChatPromptTemplate.from_messages(
+    [
+        ("system", SYSTEM_PROMPT),
+        MessagesPlaceholder("history"),
+        ("human", "{question}"),
+    ]
+)
+
+contextualize_chain = contextualize_prompt | llm | StrOutputParser()
+
+
+def _get_session_history(conversation_id: str) -> BaseChatMessageHistory:
+    return session_histories.setdefault(conversation_id, InMemoryChatMessageHistory())
+
+
+def _doc_filter(doc_ids: list[str] | None) -> dict | None:
+    if not doc_ids:
+        return None
+    return {"doc_id": doc_ids[0] if len(doc_ids) == 1 else {"$in": doc_ids}}
+
+
+def _standalone_question(inputs: dict) -> str:
+    # Follow-up questions ("how does it compare?") are rewritten so retrieval
+    # gets a self-contained query; the first question needs no rewriting.
+    if not inputs["history"]:
+        return inputs["question"]
+    return contextualize_chain.invoke(inputs)
+
+
+def _retrieve(inputs: dict) -> list[Document]:
+    retriever = vectorstore.as_retriever(
+        search_kwargs={"k": inputs["k"], "filter": _doc_filter(inputs.get("doc_ids"))}
+    )
+    return retriever.invoke(inputs["standalone_question"])
+
+
+def _format_docs(docs: list[Document]) -> str:
+    if not docs:
+        return "(no relevant context found)"
+    return "\n\n---\n\n".join(doc.page_content for doc in docs)
+
+
+rag_chain = (
+    RunnablePassthrough.assign(history=lambda x: x["history"][-MAX_HISTORY_MESSAGES:])
+    | RunnablePassthrough.assign(standalone_question=RunnableLambda(_standalone_question))
+    | RunnablePassthrough.assign(context=RunnableLambda(_retrieve) | _format_docs)
+    | qa_prompt
+    | llm
+    | StrOutputParser()
+)
+
+conversational_rag_chain = RunnableWithMessageHistory(
+    rag_chain,
+    _get_session_history,
+    input_messages_key="question",
+    history_messages_key="history",
+)
 
 
 def ingest_document(file_path: str, source_name: str, doc_id: str) -> int:
@@ -71,28 +141,7 @@ def ingest_document(file_path: str, source_name: str, doc_id: str) -> int:
 def answer_question(
     conversation_id: str, question: str, k: int = 4, doc_ids: list[str] | None = None
 ) -> str:
-    search_filter = None
-    if doc_ids:
-        search_filter = {"doc_id": doc_ids[0] if len(doc_ids) == 1 else {"$in": doc_ids}}
-
-    docs = vectorstore.similarity_search(question, k=k, filter=search_filter)
-    context = "\n\n---\n\n".join(doc.page_content for doc in docs)
-
-    history = conversations.setdefault(conversation_id, [])
-    history_text = "\n".join(f"{role}: {text}" for role, text in history[-6:])
-
-    prompt = (
-        f"{SYSTEM_PROMPT}\n\n"
-        f"Document context:\n{context if context else '(no relevant context found)'}\n\n"
-        f"Conversation history:\n{history_text if history_text else '(no previous history)'}\n\n"
-        f"Question: {question}\n"
-        "Answer:"
+    return conversational_rag_chain.invoke(
+        {"question": question, "k": k, "doc_ids": doc_ids},
+        config={"configurable": {"session_id": conversation_id}},
     )
-
-    response = llm.invoke(prompt)
-    answer = _extract_text(response.content)
-
-    history.append(("User", question))
-    history.append(("AI", answer))
-
-    return answer

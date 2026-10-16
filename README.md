@@ -62,24 +62,27 @@ The loader and splitter steps are both **dispatch tables** (`extension → class
 ### Chat pipeline — `POST /chat`
 
 ```
-{conversation_id, message}
+{conversation_id, message, doc_ids?}
         │
         ▼
-1. vectorstore.similarity_search(message, k=4)
-   → embeds the question, returns the 4 nearest chunks across
-     every document ever indexed (there is no per-document or
-     per-user scoping yet — see "known limitations" below)
+0. RunnableWithMessageHistory loads this conversation's history
+   (InMemoryChatMessageHistory per conversation_id, last 6 messages used)
         │
         ▼
-2. Build one prompt: SYSTEM_PROMPT + retrieved context
-   + last 6 turns of this conversation's history + the question
-   (history lives in an in-process dict: conversation_id -> [(role, text), ...])
+1. Contextualize: if there is history, the LLM rewrites the question into
+   a standalone one ("how does it compare?" → "how does X compare to Y?");
+   the first question of a conversation is used as-is
         │
         ▼
-3. llm.invoke(prompt)  → Gemini chat model generates the answer
+2. Retriever: embeds the standalone question, returns the 4 nearest chunks,
+   filtered by doc_id when doc_ids is given (otherwise across every document)
         │
         ▼
-4. History is updated in place, the answer is returned
+3. LCEL chain: prompt (system + context + history + question)
+   → Gemini chat model → StrOutputParser
+        │
+        ▼
+4. The question and answer are appended to the history, the answer is returned
 ```
 
 ### Known limitations of today's implementation
@@ -87,7 +90,7 @@ The loader and splitter steps are both **dispatch tables** (`extension → class
 These are not bugs — they're the parts of the roadmap that haven't been built yet, called out explicitly so it's clear what "done" currently means:
 
 - **No user scoping yet.** Every document lands in a single Chroma collection named `documents`, tagged with a `doc_id` in its metadata. A search can be scoped to one or more documents, but not to a user.
-- **Conversation history is a plain Python dict in memory.** Restart the backend, every conversation is gone.
+- **Conversation history lives in process memory.** Restart the backend, every conversation is gone.
 - **Retrieval is pure vector similarity.** Great at semantic/paraphrase matching, weak at exact keywords, acronyms, or rare terms that don't have a nearby vector neighbor.
 - **No user boundary at all.** Any conversation can retrieve any uploaded document.
 
