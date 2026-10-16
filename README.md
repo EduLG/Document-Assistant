@@ -88,7 +88,6 @@ These are not bugs — they're the parts of the roadmap that haven't been built 
 
 - **No user scoping yet.** Every document lands in a single Chroma collection named `documents`, tagged with a `doc_id` in its metadata. A search can be scoped to one or more documents, but not to a user.
 - **Conversation history is a plain Python dict in memory.** Restart the backend, every conversation is gone.
-- **No embedding cache.** Re-uploading the same content recomputes embeddings from scratch — each call is a billed request to Gemini.
 - **Retrieval is pure vector similarity.** Great at semantic/paraphrase matching, weak at exact keywords, acronyms, or rare terms that don't have a nearby vector neighbor.
 - **No user boundary at all.** Any conversation can retrieve any uploaded document.
 

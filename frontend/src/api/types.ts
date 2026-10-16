@@ -9,6 +9,7 @@ export type UploadDocumentResponse = UploadDocumentResult[];
 export interface ChatMessage {
   conversation_id: string;
   message: string;
+  doc_ids?: string[];
 }
 
 export interface ChatResponse {
